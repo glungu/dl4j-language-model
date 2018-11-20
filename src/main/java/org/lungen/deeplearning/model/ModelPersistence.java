@@ -1,76 +1,86 @@
 package org.lungen.deeplearning.model;
 
+import java.io.File;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import org.deeplearning4j.nn.api.Model;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.util.ModelSerializer;
-
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Created by user on 10.11.2018.
+ * ModelPersistence.
+ * Utility class for saving/loading model from file.
+ *
  */
 public class ModelPersistence {
 
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("YYYYMMdd-HHmmss");
-    public static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.00");
+    private static Logger log = LoggerFactory.getLogger("model");
+    private static final double NANOS_IN_SECOND = 1e+9;
+
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("YYYYMMdd-HHmmss");
+    private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.00");
+
+    private ModelPersistence() {
+    }
+
+    static {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+        symbols.setDecimalSeparator('.');
+        NUMBER_FORMAT.setDecimalFormatSymbols(symbols);
+    }
+
+    private static File getCurrentDir() {
+        return new File(System.getProperty("user.dir"));
+    }
 
     public static void save(Model model) {
+        log.info("Saving Model...");
+        String date = DATE_FORMAT.format(new Date());
+        String score = NUMBER_FORMAT.format(model.score());
+
+        String fileName = "model-" + date + "-score-" + score + ".zip";
+        File file = new File(getCurrentDir(), fileName);
+
         try {
-            System.out.println("\n\nSaving Model");
-            String currentDir = System.getProperty("user.dir");
-            String date = DATE_FORMAT.format(new Date());
-            String score = NUMBER_FORMAT.format(model.score());
-
-            String fileToSave = currentDir + "/src/main/resources/model-" + date
-                    + "-score-" + score + ".zip";
-
-            //Where to save the network. Note: the file is in .zip format - can be opened externally
-            ModelSerializer.writeModel(model, fileToSave, true);
-            System.out.println("Model saved: " + fileToSave);
-        } catch (IOException e) {
-            System.out.println("Cannot save model");
-            e.printStackTrace();
+            ModelSerializer.writeModel(model, file, true);
+            log.info("Model saved: " + file);
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot save model: " + file.getAbsolutePath(), e);
         }
     }
 
     public static ComputationGraph loadGraph(String fileName) {
+        long startNano = System.nanoTime();
+        File file = new File(getCurrentDir(), fileName);
+        log.info("Loading Model... " + file.getAbsolutePath());
+
         try {
-            long startNano = System.nanoTime();
-
-            System.out.println("\n\nLoading Model");
-            String currentDir = System.getProperty("user.dir");
-            String fileLocation = currentDir + "/src/main/resources/" + fileName;
-            System.out.println("### " + fileLocation);
-
-            // Load the model
-            ComputationGraph graph = ModelSerializer.restoreComputationGraph(fileLocation);
-
-            System.out.println("Model loaded in: " + ((System.nanoTime() - startNano)/1e+9) + " seconds");
+            ComputationGraph graph = ModelSerializer.restoreComputationGraph(file);
+            log.info("Model loaded in: " + ((System.nanoTime() - startNano)/NANOS_IN_SECOND) + " seconds");
             return graph;
         } catch (IOException e) {
-            System.out.println("Cannot restore model");
-            e.printStackTrace();
-            throw new IllegalStateException();
+            throw new IllegalStateException("Cannot restore model: " + file.getAbsolutePath(), e);
         }
     }
 
     public static MultiLayerNetwork loadNet(String fileName) {
-        try {
-            System.out.println("\n\nLoading Model");
-            String currentDir = System.getProperty("user.dir");
-            String fileLocation = currentDir + "/src/main/resources/" + fileName;
-            System.out.println("### " + fileLocation);
+        long startNano = System.nanoTime();
+        File file = new File(getCurrentDir(), fileName);
+        log.info("Loading Model... " + file.getAbsolutePath());
 
-            // Load the model
-            return ModelSerializer.restoreMultiLayerNetwork(fileLocation);
+        try {
+            MultiLayerNetwork model = ModelSerializer.restoreMultiLayerNetwork(file);
+            log.info("Model loaded in: " + ((System.nanoTime() - startNano)/NANOS_IN_SECOND) + " seconds");
+            return model;
         } catch (IOException e) {
-            System.out.println("Cannot restore model");
-            e.printStackTrace();
-            throw new IllegalStateException();
+            throw new IllegalStateException("Cannot restore model: " + file.getAbsolutePath(), e);
         }
     }
 }

@@ -14,7 +14,7 @@ public class EarlyStopListener extends ScoreIterationListener {
 
     private static final Logger log = LoggerFactory.getLogger("listener.earlystop");
 
-    private InMemoryModelSaver<ComputationGraph> modelSaver = new InMemoryModelSaver<>();
+    private InMemoryModelSaver<Model> modelSaver = new InMemoryModelSaver<>();
 
     private double bestScore = Double.MAX_VALUE;
 
@@ -36,7 +36,7 @@ public class EarlyStopListener extends ScoreIterationListener {
             if (bestScore > score) {
                 bestScore = score;
                 iterationsWithoutImprovement = 0;
-                modelSaver.saveBestModel((ComputationGraph) model, score);
+                modelSaver.saveBestModel(model, score);
             } else {
                 iterationsWithoutImprovement++;
                 if (iterationsWithoutImprovement > iterationsWithoutImprovementLimit) {
@@ -56,7 +56,7 @@ public class EarlyStopListener extends ScoreIterationListener {
 
     public void writeBestModel() {
         try {
-            ComputationGraph bestModel = modelSaver.getBestModel();
+            Model bestModel = modelSaver.getBestModel();
             ModelPersistence.save(bestModel);
 
         } catch (IOException e) {

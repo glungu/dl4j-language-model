@@ -9,7 +9,7 @@
     <artifactId>dl4j-language-model</artifactId>
     <version>1.0.0</version>
 
-    <name>Character-Level Language Model for text generation</name>
+    <name>dl4j-language-model</name>
 
     <properties>
         <java.version>1.8</java.version>

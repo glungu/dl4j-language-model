@@ -1,16 +1,25 @@
 package org.lungen.deeplearning.iterator;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Random;
+
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A simple DataSetIterator for use in the GravesLSTMCharModellingExample.
  * Given a text file and a few options, generate feature vectors and labels for training,
@@ -23,6 +32,9 @@ import java.util.*;
  * @author Alex Black
  */
 public class CharacterIterator implements DataSetIterator {
+
+    private static final Logger log = LoggerFactory.getLogger("iterator.character");
+
     //Valid characters
     private char[] validCharacters;
     //Maps each character to an index ind the input/output
@@ -33,19 +45,28 @@ public class CharacterIterator implements DataSetIterator {
     private int exampleLength;
     //Size of each minibatch (number of examples)
     private int miniBatchSize;
+
     private Random rng;
+
     //Offsets for the start of each example
     private LinkedList<Integer> exampleStartOffsets = new LinkedList<>();
 
-    /**
-     * @param textFilePath Path to text file to use for generating samples
-     * @param textFileEncoding Encoding of the text file. Can try Charset.defaultCharset()
-     * @param miniBatchSize Number of examples per mini-batch
-     * @param exampleLength Number of characters in each input/output vector
-     * @param validCharacters Character array of valid characters. Characters not present in this array will be removed
-     * @param rng Random number generator, for repeatability if required
-     * @throws IOException If text file cannot  be loaded
-     */
+    public CharacterIterator(File textFile,
+                             int miniBatchSize,
+                             int exampleLength,
+                             char[] validCharacters) throws IOException {
+        this(textFile.getAbsolutePath(), Charset.forName("utf-8"), miniBatchSize, exampleLength, validCharacters, new Random(7));
+    }
+
+        /**
+         * @param textFilePath Path to text file to use for generating samples
+         * @param textFileEncoding Encoding of the text file. Can try Charset.defaultCharset()
+         * @param miniBatchSize Number of examples per mini-batch
+         * @param exampleLength Number of characters in each input/output vector
+         * @param validCharacters Character array of valid characters. Characters not present in this array will be removed
+         * @param rng Random number generator, for repeatability if required
+         * @throws IOException If text file cannot  be loaded
+         */
     public CharacterIterator(String textFilePath,
                              Charset textFileEncoding,
                              int miniBatchSize,
@@ -85,10 +106,14 @@ public class CharacterIterator implements DataSetIterator {
         for (String s : lines) {
             char[] lineChars = s.toCharArray();
             for (char c : lineChars) {
-                if (!charToIdxMap.containsKey(c)) continue;
+                if (!charToIdxMap.containsKey(c)) {
+                    continue;
+                }
                 characters[currIdx++] = c;
             }
-            if (newLineValid) characters[currIdx++] = '\n';
+            if (newLineValid) {
+                characters[currIdx++] = '\n';
+            }
         }
 
         if (currIdx == characters.length) {
@@ -105,14 +130,14 @@ public class CharacterIterator implements DataSetIterator {
         }
 
         int nRemoved = maxSize - fileCharacters.length;
-        System.out.println("### Loaded and converted file: \n"
+        log.info("Loaded and converted file: \n"
                 + "\t Valid characters: " + fileCharacters.length + "\n"
                 + "\t Total characters: " + maxSize + "\n"
                 + "\t Removed characters: " + nRemoved);
 
         // Divide fileCharacters into exampleLength chunks and shuffle
-        int numMinibatchesPerEpoch = initializeOffsets();
-        System.out.println("### Minibatches per epoch: " + numMinibatchesPerEpoch);
+        int totalExamples = initializeOffsets();
+        log.info("Minibatches per epoch: " + (int) Math.ceil(totalExamples / (double)miniBatchSize));
     }
 
     public char convertIndexToCharacter( int idx ){
@@ -227,6 +252,10 @@ public class CharacterIterator implements DataSetIterator {
 
     public int numExamples() {
         return totalExamples();
+    }
+
+    public int getExampleLength() {
+        return exampleLength;
     }
 
     public void setPreProcessor(DataSetPreProcessor preProcessor) {

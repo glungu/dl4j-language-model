@@ -4,20 +4,24 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.util.Random;
 
 /**
  * Unit-test for CharacterIteratorFactory
  */
-public class CharacterIteratorFactoryTest {
+public class CharacterIteratorTest {
 
     @Test
     public void testSize() throws Exception {
         int miniBatchSize = 16;
         int exampleLength = 500;
-        CharacterIterator iter = CharacterIteratorFactory.getRussianFileIterator(
-                "tolstoy_selected.txt", miniBatchSize, exampleLength);
+        File f = new File(CharacterIterator.class.getResource("/tolstoy_selected.txt").toURI());
+        CharacterIterator iter = new CharacterIterator(f.getAbsolutePath(),
+                Charset.forName("windows-1251"), miniBatchSize, exampleLength,
+                CharactersSets.getRussianCharacterSet(), new Random(1));
 
         int miniBatchNumber = 0;
 
@@ -34,9 +38,7 @@ public class CharacterIteratorFactoryTest {
         String s = "Лев Николаевич Толстой";
         char[] chars = s.toCharArray();
 
-        String currentDir = System.getProperty("user.dir");
-        String fileLocation = currentDir + "/src/main/resources/tolstoy_selected.txt";
-        File f = new File(fileLocation);
+        File f = new File(CharacterIterator.class.getResource("/tolstoy_selected.txt").toURI());
         String line = Files.readAllLines(f.toPath(), Charset.forName("windows-1251")).iterator().next();
 
         for (int i = 0; i < chars.length; i++) {

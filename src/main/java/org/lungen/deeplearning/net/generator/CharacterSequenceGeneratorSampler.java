@@ -1,13 +1,11 @@
 package org.lungen.deeplearning.net.generator;
 
+import java.util.Random;
+
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
-import org.deeplearning4j.util.ModelSerializer;
 import org.lungen.deeplearning.iterator.CharacterIterator;
-import org.lungen.deeplearning.iterator.CharacterIteratorFactory;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
-
-import java.util.Random;
 
 /**
  * Created by user on 19.12.2017.
@@ -74,7 +72,7 @@ public class CharacterSequenceGeneratorSampler {
      * @param net MultiLayerNetwork with one or more GravesLSTM/RNN layers and a softmax output layer
      * @param iter CharacterIterator. Used for going from indexes back to characters
      */
-    public static String[] sampleCharactersFromNetwork(
+    public static String[] sample(
             String initialization, MultiLayerNetwork net,
             CharacterIterator iter, Random rng,
             int charactersToSample, int numSamples) {
@@ -151,30 +149,25 @@ public class CharacterSequenceGeneratorSampler {
         throw new IllegalArgumentException("Distribution is invalid? d=" + d + ", sum=" + sum);
     }
 
-    public static void main(String[] args) throws Exception {
-        // sample from saved model
-        Random rng = new Random(12345);
-        int miniBatchSize = 32;
-        int exampleLength = 1000;
-        int nCharactersToSample = 1000;
+    public static void sampleToConsole(MultiLayerNetwork net,
+                                       CharacterIterator iter,
+                                       int miniBatchNumber,
+                                       int nCharactersToSample,
+                                       int nSamplesToGenerate,
+                                       Random rng) {
 
-        System.out.println("\n\nLoading Model");
-        String currentDir = System.getProperty("user.dir");
-        String fileLocation = currentDir + "/src/main/resources/model-20181108-195958.zip";
-        System.out.println("### " + fileLocation);
+        int exampleLength = iter.getExampleLength();
+        int miniBatchSize = iter.batch();
 
-        //Load the model
-        MultiLayerNetwork net = ModelSerializer.restoreMultiLayerNetwork(fileLocation);
+        StringBuilder str = new StringBuilder("--------------------");
+        str.append("Completed ").append(miniBatchNumber).append(" minibatches of size ").append(miniBatchSize).append("x").append(exampleLength).append(" characters").append('\n');
+        str.append("Sampling characters...").append('\n');
+        String[] samples = sample(null, net, iter, rng, nCharactersToSample, nSamplesToGenerate);
 
-        CharacterIterator iter = CharacterIteratorFactory.getEnglishFileIterator(
-                "alice_in_wonderland.txt", miniBatchSize, exampleLength);
-
-        String sample = CharacterSequenceGeneratorSampler.sample(
-                "Alice said, ", net, iter, rng, nCharactersToSample);
-
-        System.out.println(sample);
-        System.out.println();
+        for (int j = 0; j < samples.length; j++) {
+            str.append("----- Sample ").append(j).append(" -----").append('\n');
+            str.append(samples[j]).append('\n').append('\n');
+        }
+        System.out.println(str.toString());
     }
-
-
 }
