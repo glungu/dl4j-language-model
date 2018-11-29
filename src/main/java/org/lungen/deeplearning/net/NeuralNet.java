@@ -1,6 +1,6 @@
 package org.lungen.deeplearning.net;
 
-import org.nd4j.linalg.dataset.api.iterator.MultiDataSetIterator;
+import org.lungen.deeplearning.iterator.AutoEncoderCharacterIterator;
 
 import java.util.Map;
 
@@ -9,18 +9,30 @@ import java.util.Map;
  */
 public interface NeuralNet {
 
-    public static final String PARAM_LEARNING_RATE                  = "LEARNING RATE";
-    public static final String PARAM_L2_REGULARIZATION              = "L2 REGULARIZATION PARAMETER";
-    public static final String PARAM_TRUNCATED_BPTT_SIZE            = "TRUNCATED BPTT SIZE";
-    public static final String PARAM_NUMBER_INPUT_FEATURES          = "NUMBER INPUT FEATURES";
+    String PARAM_MODEL_NAME                     = "MODEL NAME";
 
-    public static final String PARAM_ITERATOR                       = "ITERATOR";
-    public static final String PARAM_NUMBER_EPOCHS                  = "NUMBER EPOCHS";
-    public static final String PARAM_CHECK_EACH_NUMBER_MINIBATCHES  = "CHECK EACH NUMBER MINIBATCHES";
-    public static final String PARAM_STOP_AFTER_NUMBER_MINIBATCHES  = "STOP AFTER NUMBER MINIBATCHES";
+    String PARAM_DATA_FILE                      = "DATA FILE";
+    String PARAM_MINIBATCH_SIZE                 = "MINIBATCH SIZE";
+    String PARAM_SEQUENCE_LENGTH                = "SEQUENCE LENGTH";
 
-    public void init(Map<String, Object> initParams);
+    String PARAM_LEARNING_RATE                  = "LEARNING RATE";
+    String PARAM_L2_REGULARIZATION              = "L2 REGULARIZATION PARAMETER";
+    String PARAM_TRUNCATED_BPTT_SIZE            = "TRUNCATED BPTT SIZE";
+    String PARAM_NUMBER_ITER_NO_IMPROVE_STOP    = "ITERATIONS NO IMPROVEMENT STOP";
+    String PARAM_MIN_EPOCHS_STOP                = "MIN EPOCHS STOP";
 
-    public void train(Map<String, Object> trainParams);
+    String PARAM_NUMBER_EPOCHS                  = "NUMBER EPOCHS";
+    String PARAM_CHECK_EACH_NUMBER_MINIBATCHES  = "CHECK EACH NUMBER MINIBATCHES";
+    String PARAM_STOP_AFTER_NUMBER_MINIBATCHES  = "STOP AFTER NUMBER MINIBATCHES";
+    String PARAM_TEMPERATURE                    = "TEMPERATURE";
 
+    Map<String, Object> defaultParams();
+
+    Object iterator(Map<String, Object> params);
+
+    void init(Map<String, Object> params);
+
+    void train(Map<String, Object> params);
+
+    double getBestScore();
 }

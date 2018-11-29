@@ -55,7 +55,7 @@ public class CharactersSets {
                 '@', '#', '$', '%', '^',
                 '*', '{', '}', '[', ']',
                 '/', '+', '_', '\\', '|',
-                '<', '>'};
+                '<', '>', '=', '~'};
         for (char c : chars) validChars.add(c);
         return validChars;
     }
@@ -78,6 +78,10 @@ public class CharactersSets {
 
     public static char[] getEnglishCharacterSet() {
         return createCharacterSet(LATIN, NUMBERS, PUNCTUATION);
+    }
+
+    public static char[] getEnglishExtendedCharacterSet() {
+        return createCharacterSet(LATIN, NUMBERS, PUNCTUATION, SPECIAL);
     }
 
 //    /**
