@@ -147,8 +147,8 @@ public class CharacterSequenceGeneratorNet implements NeuralNet {
     @Override
     public Map<String, Object> defaultParams() {
         Map<String, Object> params = new HashMap<>();
-        params.put(PARAM_MODEL_NAME, "jnetx-code");
-        params.put(PARAM_DATA_FILE, "C:/Work/ML/code/jnetx-code-java.txt");
+        params.put(PARAM_MODEL_NAME, "java-code");
+        params.put(PARAM_DATA_FILE, "C:/Work/ML/code/java-code.txt");
         params.put(PARAM_MINIBATCH_SIZE, 32);
         params.put(PARAM_SEQUENCE_LENGTH, 2000);
         params.put(PARAM_LEARNING_RATE, 5e-3);

@@ -163,9 +163,9 @@ public class CharacterSequenceGeneratorSampler {
         Map<String, Object> params = tempNet.defaultParams();
         CharacterIterator iterator = tempNet.iterator(params);
 
-        MultiLayerNetwork net = ModelPersistence.loadNet("net-jnetx-code-20181128-093538-score-41.93.zip");
+        MultiLayerNetwork net = ModelPersistence.loadNet("net-java-code-20181128-093538-score-41.93.zip");
 
-        String init = "package com.jnetx.";
+        String init = "package com.";
         System.out.print(init);
         while (true) {
             String sample = sample(init, net, iterator, new Random(7),
