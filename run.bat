@@ -1,0 +1,1 @@
+mvn exec:java -Dexec.mainClass="org.lungen.deeplearning.net.generator.CharacterSequenceGeneratorSampler" -Dexec.args="net-java-code-20181130-100817-score-34.47.zip"

@@ -163,7 +163,12 @@ public class CharacterSequenceGeneratorSampler {
         Map<String, Object> params = tempNet.defaultParams();
         CharacterIterator iterator = tempNet.iterator(params);
 
-        String fileName = "net-java-code-20181130-100817-score-34.47.zip";
+        if (args == null || args.length == 0) {
+            System.out.println("Persisted model must be provided as parameter");
+            return;
+        }
+
+        String fileName = args[0];// "net-java-code-20181130-100817-score-34.47.zip";
         MultiLayerNetwork net = ModelPersistence.loadNet(fileName);
 
         String init = "package com.";
