@@ -163,15 +163,18 @@ public class CharacterSequenceGeneratorSampler {
         Map<String, Object> params = tempNet.defaultParams();
         CharacterIterator iterator = tempNet.iterator(params);
 
-        MultiLayerNetwork net = ModelPersistence.loadNet("net-java-code-20181128-093538-score-41.93.zip");
+        String fileName = "net-java-code-20181130-100817-score-34.47.zip";
+        MultiLayerNetwork net = ModelPersistence.loadNet(fileName);
 
         String init = "package com.";
         System.out.print(init);
+        System.out.flush();
         while (true) {
             String sample = sample(init, net, iterator, new Random(7),
-                    1000, 1, 1.0)[0];
+                    1000, 1, 0.7)[0];
             for (char c : sample.substring(init.length()).toCharArray()) {
                 System.out.print(c);
+                System.out.flush();
                 Thread.sleep(100);
             }
             init = sample;
