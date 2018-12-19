@@ -129,15 +129,16 @@ public class CharacterIterator implements DataSetIterator {
                     + "(" + fileCharacters.length + ")");
         }
 
-        int nRemoved = maxSize - fileCharacters.length;
-        log.info("Loaded and converted file: \n"
-                + "\t Valid characters: " + fileCharacters.length + "\n"
-                + "\t Total characters: " + maxSize + "\n"
-                + "\t Removed characters: " + nRemoved);
-
         // Divide fileCharacters into exampleLength chunks and shuffle
         int totalExamples = initializeOffsets();
-        log.info("Minibatches per epoch: " + (int) Math.ceil(totalExamples / (double)miniBatchSize));
+        int minibatchesPerEpoch = (int) Math.ceil(totalExamples / (double) miniBatchSize);
+
+        log.info("Loaded and converted file: " + textFilePath + " \n"
+                + "\t Total characters: " + maxSize + "\n"
+                + "\t Valid characters: " + fileCharacters.length + "\n"
+                + "\t Sequence length: " + exampleLength + "\n"
+                + "\t Minibatch size: " + miniBatchSize + "\n"
+                + "\t Minibatches per epoch: " + minibatchesPerEpoch);
     }
 
     public char convertIndexToCharacter( int idx ){

@@ -40,12 +40,14 @@ public class ModelPersistence {
         return new File(System.getProperty("user.dir"));
     }
 
-    public static void save(Model model) {
+    public static void save(String name, Model model) {
         log.info("Saving Model...");
         String date = DATE_FORMAT.format(new Date());
         String score = NUMBER_FORMAT.format(model.score());
 
-        String fileName = "model-" + date + "-score-" + score + ".zip";
+        String modelName = name != null ? name : "unknown";
+
+        String fileName = "net-" + modelName + "-" + date + "-score-" + score + ".zip";
         File file = new File(getCurrentDir(), fileName);
 
         try {

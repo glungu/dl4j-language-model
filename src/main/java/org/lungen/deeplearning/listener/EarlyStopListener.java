@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import org.deeplearning4j.earlystopping.saver.InMemoryModelSaver;
 import org.deeplearning4j.nn.api.Model;
-import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.lungen.deeplearning.model.ModelPersistence;
 import org.slf4j.Logger;
@@ -20,23 +19,37 @@ public class EarlyStopListener extends ScoreIterationListener {
 
     private int iterationsWithoutImprovement;
 
+    private String name;
     private int iterationsWithoutImprovementLimit;
+    private int minNumberEpochs;
+    private int epoch;
 
     private boolean stopRecommended;
 
-    public EarlyStopListener(int iterationsWithoutImprovementLimit) {
+    public EarlyStopListener(String name, int iterationsWithoutImprovementLimit, int minNumberEpochs) {
+        this.name = name;
         this.iterationsWithoutImprovementLimit = iterationsWithoutImprovementLimit;
+        this.minNumberEpochs = minNumberEpochs;
+    }
+
+    public void setEpoch(int epoch) {
+        this.epoch = epoch;
     }
 
     @Override
     public void iterationDone(Model model, int iteration, int epoch) {
+        if (this.epoch < minNumberEpochs) {
+            return;
+        }
+
         try {
 
             double score = model.score();
             if (bestScore > score) {
-                bestScore = score;
-                iterationsWithoutImprovement = 0;
                 modelSaver.saveBestModel(model, score);
+                log.info("Improved model: {} -> {}, saved score {}", bestScore, score, modelSaver.getBestModel().score());
+                iterationsWithoutImprovement = 0;
+                bestScore = score;
             } else {
                 iterationsWithoutImprovement++;
                 if (iterationsWithoutImprovement > iterationsWithoutImprovementLimit) {
@@ -50,6 +63,10 @@ public class EarlyStopListener extends ScoreIterationListener {
         }
     }
 
+    public double getBestScore() {
+        return bestScore;
+    }
+
     public boolean isStopRecommended() {
         return stopRecommended;
     }
@@ -57,7 +74,7 @@ public class EarlyStopListener extends ScoreIterationListener {
     public void writeBestModel() {
         try {
             Model bestModel = modelSaver.getBestModel();
-            ModelPersistence.save(bestModel);
+            ModelPersistence.save(name, bestModel);
 
         } catch (IOException e) {
             log.error("Cannot save model", e);
