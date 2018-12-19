@@ -14,6 +14,7 @@ public interface NeuralNet {
     String PARAM_DATA_FILE                      = "DATA FILE";
     String PARAM_MINIBATCH_SIZE                 = "MINIBATCH SIZE";
     String PARAM_SEQUENCE_LENGTH                = "SEQUENCE LENGTH";
+    String PARAM_NUMBER_INPUT_FEATURES          = "NUMBER INPUT FEATURES";
 
     String PARAM_LEARNING_RATE                  = "LEARNING RATE";
     String PARAM_L2_REGULARIZATION              = "L2 REGULARIZATION PARAMETER";

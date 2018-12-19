@@ -34,13 +34,26 @@ public class MultivariatePredictorNet implements NeuralNet {
     private ScorePrintListener scorePrintListener;
 
     @Override
-    public void init(Map<String, Object> initParams) {
+    public Map<String, Object> defaultParams() {
+        return null;
+    }
 
-        double learningRate     = (Double) initParams.get(PARAM_LEARNING_RATE);
-        double l2Regularization = (Double) initParams.get(PARAM_L2_REGULARIZATION);
-        int tbpttSize           = (Integer) initParams.get(PARAM_TRUNCATED_BPTT_SIZE);
-        int numFeaturesRecurrent    = (Integer) initParams.get(PARAM_NUMBER_INPUT_FEATURES);
-        int numFeaturesNonRecurrent = (Integer) initParams.get(PARAM_NUMBER_INPUT_FEATURES);
+    @Override
+    public Object iterator(Map<String, Object> params) {
+        return null;
+    }
+
+    @Override
+    public void init(Map<String, Object> params) {
+
+        String modelName        = (String) params.get(PARAM_MODEL_NAME);
+        double learningRate     = (Double) params.get(PARAM_LEARNING_RATE);
+        double l2Regularization = (Double) params.get(PARAM_L2_REGULARIZATION);
+        int tbpttSize           = (Integer) params.get(PARAM_TRUNCATED_BPTT_SIZE);
+        int numFeaturesRecurrent    = (Integer) params.get(PARAM_NUMBER_INPUT_FEATURES);
+        int numFeaturesNonRecurrent = (Integer) params.get(PARAM_NUMBER_INPUT_FEATURES);
+        int numIterEarlyStop    = (Integer) params.get(PARAM_NUMBER_ITER_NO_IMPROVE_STOP);
+        int minEpochsEarlyStop  = (Integer) params.getOrDefault(PARAM_MIN_EPOCHS_STOP, 0);
 
         final NeuralNetConfiguration.Builder builder = new NeuralNetConfiguration.Builder()
 //                .updater(new RmsProp(learningRate))
@@ -97,7 +110,7 @@ public class MultivariatePredictorNet implements NeuralNet {
                 .setOutputs("output");
 
         net = new ComputationGraph(graphBuilder.build());
-        earlyStopListener = new EarlyStopListener(100000);
+        earlyStopListener = new EarlyStopListener(modelName, numIterEarlyStop, minEpochsEarlyStop);
         scorePrintListener = new ScorePrintListener(1);
         net.setListeners(scorePrintListener, earlyStopListener, new UIStatsListener());
         net.init();
@@ -106,5 +119,10 @@ public class MultivariatePredictorNet implements NeuralNet {
     @Override
     public void train(Map<String, Object> trainParams) {
 
+    }
+
+    @Override
+    public double getBestScore() {
+        return 0;
     }
 }
