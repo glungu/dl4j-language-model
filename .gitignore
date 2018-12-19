@@ -1,2 +1,6 @@
 *.iml
+*.log 
+*.tmp
+*.gz
+*.zip
 target

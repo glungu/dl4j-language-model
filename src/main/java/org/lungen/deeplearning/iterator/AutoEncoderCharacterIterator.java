@@ -23,15 +23,15 @@ import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A simple DataSetIterator for use in the LSTMCharModellingExample.
- * Given a text file and a few options, generate feature vectors and labels for training,
- * where we want to predict the next character in the sequence.<br>
- * This is done by randomly choosing a position in the text file, at offsets of 0, exampleLength, 2*exampleLength, etc
- * to start each sequence. Then we convert each character to an index, i.e., a one-hot vector.
- * Then the character 'a' becomes [1,0,0,0,...], 'b' becomes [0,1,0,0,...], etc
+/**
+ * A multi dataset iterator for autoencoder.
+ * Input consists of same datasets - one for encoding character sequence,
+ * another - for decoding. Characters represented as one-hot vectors.
  *
- * Feature vectors and labels are both one-hot vectors of same length
- * @author Alex Black
+ * Labels are same character sequences but shifted to the left, i.e.
+ * representing next character for each of the characters in input sequence.
+ *
+ * @author lungen.tech@gmail.com
  */
 public class AutoEncoderCharacterIterator implements MultiDataSetIterator {
 

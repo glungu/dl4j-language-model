@@ -17,6 +17,7 @@ import org.lungen.deeplearning.iterator.CharactersSets;
 import org.lungen.deeplearning.listener.EarlyStopListener;
 import org.lungen.deeplearning.listener.ScorePrintListener;
 import org.lungen.deeplearning.listener.UIStatsListener;
+import org.lungen.deeplearning.model.ModelPersistence;
 import org.lungen.deeplearning.net.NeuralNet;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.dataset.api.MultiDataSet;
@@ -146,8 +147,9 @@ public class AutoEncoderNet implements NeuralNet {
             iterator.reset();
             log.info("[{}] Epoch completed", i);
         }
-
         log.info("Training complete!");
+
+        ModelPersistence.save(net);
     }
 
 
@@ -164,7 +166,7 @@ public class AutoEncoderNet implements NeuralNet {
         params.put(PARAM_CHECK_EACH_NUMBER_MINIBATCHES, 10);
         params.put(PARAM_STOP_AFTER_NUMBER_MINIBATCHES, -1);
         params.put(PARAM_NUMBER_INPUT_FEATURES, iterator.getDictionarySize());
-        params.put(PARAM_NUMBER_EPOCHS, 200);
+        params.put(PARAM_NUMBER_EPOCHS, 2500);
 
         AutoEncoderNet net = new AutoEncoderNet();
         net.init(params);
