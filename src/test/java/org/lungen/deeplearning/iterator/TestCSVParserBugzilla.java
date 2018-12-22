@@ -22,8 +22,8 @@ public class TestCSVParserBugzilla {
 
     @Test
     public void testProcessed() {
-        String dir = "C:/DATA/Projects/DataSets/Jnetx_Bugzilla";
-        String filePath = dir + "/bugzilla-jnetx-processed.csv";
+        String dir = "C:/DATA/Projects/DataSets/Bugzilla";
+        String filePath = dir + "/bugzilla-processed.csv";
         CSVParser parser = new CSVParser(new File(filePath), true);
         List<List<String>> parsedLines = parser.getParsedLines();
         Assert.assertEquals(40980, parsedLines.size());
@@ -31,8 +31,8 @@ public class TestCSVParserBugzilla {
 
     @Test
     public void testPreProcess() {
-        String dir = "C:/DATA/Projects/DataSets/Jnetx_Bugzilla";
-        String filePath = dir + "/bugzilla-jnetx-test1.csv";
+        String dir = "C:/DATA/Projects/DataSets/Bugzilla";
+        String filePath = dir + "/bugzilla-test1.csv";
         CSVParserBugzilla parser = new CSVParserBugzilla(new File(filePath), true);
         parser.process();
         List<List<String>> parsedLines = parser.getParsedLines();
@@ -45,8 +45,8 @@ public class TestCSVParserBugzilla {
 
     @Test
     public void testParseSummaryQuotes() {
-        String dir = "C:/DATA/Projects/DataSets/Jnetx_Bugzilla";
-        String filePath = dir + "/bugzilla-jnetx-test2.csv";
+        String dir = "C:/DATA/Projects/DataSets/Bugzilla";
+        String filePath = dir + "/bugzilla-test2.csv";
         CSVParserBugzilla parser = new CSVParserBugzilla(new File(filePath), true);
         List<List<String>> parsedLines = parser.getParsedLines();
 
@@ -255,8 +255,8 @@ public class TestCSVParserBugzilla {
 
     @Test
     public void testParseFile() {
-        String dir = "C:/DATA/Projects/DataSets/Jnetx_Bugzilla";
-        String filePath = dir + "/bugzilla-jnetx-test0.csv";
+        String dir = "C:/DATA/Projects/DataSets/Bugzilla";
+        String filePath = dir + "/bugzilla-test0.csv";
         CSVParserBugzilla parser = new CSVParserBugzilla(new File(filePath), true);
         parser.process();
 

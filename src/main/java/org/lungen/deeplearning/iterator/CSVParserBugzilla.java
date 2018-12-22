@@ -166,13 +166,13 @@ public class CSVParserBugzilla extends CSVParser {
     }
 
     public static void main(String[] args) {
-        String dir = "C:/DATA/Projects/DataSets/Jnetx_Bugzilla";
-        File sourceFile = new File(dir, "bugzilla-jnetx.csv");
+        String dir = "C:/DATA/Projects/DataSets/Bugzilla";
+        File sourceFile = new File(dir, "bugzilla.csv");
 
         CSVParserBugzilla parser = new CSVParserBugzilla(sourceFile, true);
         parser.process();
 
-        File processedFile = new File(dir, "bugzilla-jnetx-processed.csv");
+        File processedFile = new File(dir, "bugzilla-processed.csv");
         parser.save(processedFile);
     }
 
