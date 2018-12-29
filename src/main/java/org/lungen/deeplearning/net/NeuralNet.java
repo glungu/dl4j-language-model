@@ -9,23 +9,27 @@ import java.util.Map;
  */
 public interface NeuralNet {
 
-    String PARAM_MODEL_NAME                     = "MODEL NAME";
+    String PARAM_MODEL_NAME                     = "model.name";
 
-    String PARAM_DATA_FILE                      = "DATA FILE";
-    String PARAM_MINIBATCH_SIZE                 = "MINIBATCH SIZE";
-    String PARAM_SEQUENCE_LENGTH                = "SEQUENCE LENGTH";
-    String PARAM_NUMBER_INPUT_FEATURES          = "NUMBER INPUT FEATURES";
+    String PARAM_DATA_FILE                      = "data.file";
+    String PARAM_SEQUENCE_LENGTH                = "data.input.sequence.length";
+    String PARAM_NUMBER_INPUT_FEATURES          = "data.input.features";
+    String PARAM_NUMBER_OUTPUT_CLASSES          = "data.output.classes";
 
-    String PARAM_LEARNING_RATE                  = "LEARNING RATE";
-    String PARAM_L2_REGULARIZATION              = "L2 REGULARIZATION PARAMETER";
-    String PARAM_TRUNCATED_BPTT_SIZE            = "TRUNCATED BPTT SIZE";
-    String PARAM_NUMBER_ITER_NO_IMPROVE_STOP    = "ITERATIONS NO IMPROVEMENT STOP";
-    String PARAM_MIN_EPOCHS_STOP                = "MIN EPOCHS STOP";
+    String PARAM_NUMBER_EPOCHS                  = "training.epochs";
+    String PARAM_MINIBATCH_SIZE                 = "training.minibatch.size";
+    String PARAM_LEARNING_RATE                  = "training.learning.rate";
+    String PARAM_L2_REGULARIZATION              = "training.regularization.l2";
+    String PARAM_TRUNCATED_BPTT_SIZE            = "training.backprop.tbptt.size";
 
-    String PARAM_NUMBER_EPOCHS                  = "NUMBER EPOCHS";
-    String PARAM_CHECK_EACH_NUMBER_MINIBATCHES  = "CHECK EACH NUMBER MINIBATCHES";
-    String PARAM_STOP_AFTER_NUMBER_MINIBATCHES  = "STOP AFTER NUMBER MINIBATCHES";
-    String PARAM_TEMPERATURE                    = "TEMPERATURE";
+    String PARAM_CHECK_EACH_NUMBER_MINIBATCHES  = "training.evaluate.minibatches";
+    String PARAM_TEMPERATURE                    = "training.evaluate.temperature";
+
+    String PARAM_NUMBER_ITER_NO_IMPROVE_STOP    = "training.stop.no_improvements.iterations";
+    String PARAM_MIN_EPOCHS_STOP                = "training.stop.min_epochs";
+    String PARAM_STOP_AFTER_NUMBER_MINIBATCHES  = "training.stop.minibatches";
+
+
 
     Map<String, Object> defaultParams();
 
