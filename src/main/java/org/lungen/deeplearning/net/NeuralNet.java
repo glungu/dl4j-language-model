@@ -12,6 +12,7 @@ public interface NeuralNet {
     String PARAM_MODEL_NAME                     = "model.name";
 
     String PARAM_DATA_FILE                      = "data.file";
+    String PARAM_DATA_FILE_TEST                 = "data.file.test";
     String PARAM_SEQUENCE_LENGTH                = "data.input.sequence.length";
     String PARAM_NUMBER_INPUT_FEATURES          = "data.input.features";
     String PARAM_NUMBER_OUTPUT_CLASSES          = "data.output.classes";

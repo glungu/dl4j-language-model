@@ -1,10 +1,5 @@
 package org.lungen.deeplearning.net.classifier;
 
-import java.io.File;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.deeplearning4j.eval.Evaluation;
 import org.deeplearning4j.nn.conf.BackpropType;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
@@ -16,7 +11,6 @@ import org.deeplearning4j.nn.conf.layers.RnnOutputLayer;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.lungen.deeplearning.iterator.CharacterSequenceClassifierIterator;
-import org.lungen.deeplearning.iterator.MultivariateIterator;
 import org.lungen.deeplearning.listener.EarlyStopListener;
 import org.lungen.deeplearning.listener.ScorePrintListener;
 import org.lungen.deeplearning.listener.UIStatsListener;
@@ -25,13 +19,18 @@ import org.lungen.deeplearning.net.NeuralNet;
 import org.lungen.deeplearning.net.autoencoder.MultivariatePredictorNet;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.dataset.DataSet;
-import org.nd4j.linalg.dataset.api.MultiDataSet;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.lungen.deeplearning.iterator.CharactersSets.*;
+import java.io.File;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.lungen.deeplearning.iterator.CharactersSets.RUSSIAN;
+import static org.lungen.deeplearning.iterator.CharactersSets.createCharacterSet;
 
 public class CharacterSequenceClassifierNet implements NeuralNet {
 
@@ -54,7 +53,6 @@ public class CharacterSequenceClassifierNet implements NeuralNet {
         this.modelName          = (String) params.get(PARAM_MODEL_NAME);
         double learningRate     = (Double) params.get(PARAM_LEARNING_RATE);
         double l2Regularization = (Double) params.get(PARAM_L2_REGULARIZATION);
-        int tbpttSize           = (Integer) params.get(PARAM_TRUNCATED_BPTT_SIZE);
         int numIterEarlyStop    = (Integer) params.get(PARAM_NUMBER_ITER_NO_IMPROVE_STOP);
         int minEpochsEarlyStop  = (Integer) params.getOrDefault(PARAM_MIN_EPOCHS_STOP, 0);
         int numLabelClasses     = (Integer) params.get(PARAM_NUMBER_OUTPUT_CLASSES);
@@ -159,20 +157,28 @@ public class CharacterSequenceClassifierNet implements NeuralNet {
 
     @Override
     public CharacterSequenceClassifierIterator iterator(Map<String, Object> params) {
-        String file = (String) params.get(PARAM_DATA_FILE);
-        int minibatchSize = (Integer) params.get(PARAM_MINIBATCH_SIZE);
-        int numOutputClasses = (Integer) params.get(PARAM_NUMBER_OUTPUT_CLASSES);
+        String fileTrain        = (String) params.get(PARAM_DATA_FILE);
+        String fileTest         = (String) params.get(PARAM_DATA_FILE_TEST);
+        int minibatchSize       = (Integer) params.get(PARAM_MINIBATCH_SIZE);
+        int numOutputClasses    = (Integer) params.get(PARAM_NUMBER_OUTPUT_CLASSES);
 
-        return new CharacterSequenceClassifierIterator(new File(file),
+        this.iteratorTrain = new CharacterSequenceClassifierIterator(new File(fileTrain),
                 createCharacterSet(RUSSIAN, Collections.singletonList('-')),
                 numOutputClasses, minibatchSize);
+        this.iteratorTest = new CharacterSequenceClassifierIterator(new File(fileTest),
+                createCharacterSet(RUSSIAN, Collections.singletonList('-')),
+                numOutputClasses, 1500);
+
+        return iteratorTrain;
     }
 
     @Override
     public Map<String, Object> defaultParams() {
         Map<String, Object> params = new HashMap<>();
         params.put(PARAM_MODEL_NAME, "bugzilla");
-        params.put(PARAM_DATA_FILE, "C:/DATA/Projects/DataSets/Russian/words.csv");
+        params.put(PARAM_DATA_FILE, "C:/DATA/Projects/DataSets/RU_Wiktionary/words.train.csv");
+        params.put(PARAM_DATA_FILE_TEST, "C:/DATA/Projects/DataSets/RU_Wiktionary/words.test.csv");
+        params.put(PARAM_NUMBER_OUTPUT_CLASSES, 3);
         params.put(PARAM_MINIBATCH_SIZE, 32);
         params.put(PARAM_SEQUENCE_LENGTH, 1000);
         params.put(PARAM_LEARNING_RATE, 1e-3);

@@ -3,7 +3,6 @@ package org.lungen.deeplearning.iterator;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.LinkedList;
@@ -24,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class CharacterSequenceClassifierIterator implements DataSetIterator {
 
-    private static final Logger log = LoggerFactory.getLogger("autoencoder.iterator");
+    private static final Logger log = LoggerFactory.getLogger("iterator.classifier");
 
     private Random rng = new Random(7);
 
@@ -69,7 +68,7 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
         }
 
         // load file
-        csvParser = new CSVParser(csvFile, true);
+        csvParser = new CSVParser(csvFile, false);
         List<List<String>> parsedLines = csvParser.getParsedLines();
 
         // determine character sequence max length
@@ -82,7 +81,7 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
             char[] charsCleaned = cleanInvalidCharacters(chars);
             charSequences.add(charsCleaned);
             // labels
-            String labelValue = parsedLine.get(csvParser.headerNames.length - 1);
+            String labelValue = parsedLine.get(parsedLine.size() - 1).trim();
             labels.add(labelValue.equals("") ? -1 : Long.valueOf(labelValue));
         }
         IntSummaryStatistics summary = charSequences.stream().mapToInt(chars -> chars.length).summaryStatistics();
@@ -103,7 +102,8 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
         for (int i = 0; i < nMinibatchesPerEpoch; i++) {
             miniBatchStartOffsets.add(i * miniBatchSize);
         }
-        Collections.shuffle(miniBatchStartOffsets, rng);
+        // data in file already shuffled
+        // Collections.shuffle(miniBatchStartOffsets, rng);
     }
 
     private char[] cleanInvalidCharacters(char[] input) {
@@ -193,7 +193,8 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
             throw new NoSuchElementException();
         }
 
-        int currMinibatchSize = Math.min(batchSize, miniBatchStartOffsets.size());
+        int indexStart = miniBatchStartOffsets.removeFirst();
+        int currMinibatchSize = Math.min(batchSize, charSequences.size() - indexStart);
 
 //        //Allocate space:
 //        //Note the order here:
@@ -215,15 +216,14 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
 
         for (int i = 0; i < currMinibatchSize; i++) {
             // sequence
-            int index = miniBatchStartOffsets.removeFirst();
-            char[] charSequence = charSequences.get(index);
+            char[] charSequence = charSequences.get(indexStart + i);
             int c = 0;
             for (int j = 0; j < charSequence.length; j++, c++) {
                 int charIndex = mapCharToIndex.get(charSequence[j]);
                 sequenceInput.putScalar(new int[]{i, charIndex, c}, 1.0);
             }
             // labels
-            labels.putScalar(i, this.labels.get(index));
+            labels.putScalar(i, this.labels.get(indexStart + i));
 
             // mask
             sequenceInputMask.put(
@@ -259,6 +259,10 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
 
     public int getNumSequenceFeatures() {
         return charDictionary.length;
+    }
+
+    public int getCharSequenceMaxLength() {
+        return charSequenceMaxLength;
     }
 
 }

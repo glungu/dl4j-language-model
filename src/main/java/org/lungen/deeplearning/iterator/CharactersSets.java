@@ -13,6 +13,7 @@ import java.util.Random;
  */
 public class CharactersSets {
 
+    public static List<Character> RUSSIAN_LOWERCASE = getRussianCharactersLowerCase();
     public static List<Character> RUSSIAN = getRussianCharacters();
     public static List<Character> LATIN = getLatinCharacters();
     public static List<Character> PUNCTUATION = getPunctuation();
@@ -21,8 +22,16 @@ public class CharactersSets {
 
     private static List<Character> getRussianCharacters() {
         List<Character> validChars = new LinkedList<>();
+        validChars.addAll(getRussianCharactersLowerCase());
         for (char c = 'А'; c <= 'Я'; c++) validChars.add(c);
+        validChars.add('Ё');
+        return validChars;
+    }
+
+    private static List<Character> getRussianCharactersLowerCase() {
+        List<Character> validChars = new LinkedList<>();
         for (char c = 'а'; c <= 'я'; c++) validChars.add(c);
+        validChars.add('ё');
         return validChars;
     }
 
