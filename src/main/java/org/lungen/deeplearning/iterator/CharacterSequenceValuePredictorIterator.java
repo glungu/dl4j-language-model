@@ -1,17 +1,5 @@
 package org.lungen.deeplearning.iterator;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.IntSummaryStatistics;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Random;
-import java.util.stream.IntStream;
-
 import org.lungen.data.bugzilla.CSVParser;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
@@ -23,9 +11,20 @@ import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CharacterSequenceClassifierIterator implements DataSetIterator {
+import java.io.File;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-    private static final Logger log = LoggerFactory.getLogger("iterator.classifier");
+/**
+ * CharacterSequenceValuePredictorIterator
+ *
+ * @author lungen.tech@gmail.com
+ */
+public class CharacterSequenceValuePredictorIterator implements DataSetIterator {
+
+    private static final Logger log = LoggerFactory.getLogger("iterator.predictor");
 
     private Random rng = new Random(7);
 
@@ -39,19 +38,20 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
     private CSVParser csvParser;
     private List<char[]> charSequences;
     private List<Long> labels;
+    private List<LabelTimeInterval> labelClasses;
+    private int numLabelClasses;
 
     // offsets for the start of each example
     private LinkedList<Integer> miniBatchStartOffsets = new LinkedList<>();
-    private int numOuputClasses;
 
 
-    public CharacterSequenceClassifierIterator() {
+    public CharacterSequenceValuePredictorIterator() {
     }
 
-    public CharacterSequenceClassifierIterator(File csvFile,
-                                               char[] charsValid,
-                                               int numOuputClasses,
-                                               int miniBatchSize) {
+    public CharacterSequenceValuePredictorIterator(File csvFile,
+                                                   char[] charsValid,
+                                                   int charSequenceMaxLength,
+                                                   int miniBatchSize) {
 
         if (!csvFile.isFile()) {
             throw new IllegalStateException("File does not exist: " + csvFile);
@@ -59,9 +59,9 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
         if (miniBatchSize <= 0) {
             throw new IllegalArgumentException("Invalid miniBatchSize (must be >0)");
         }
+        this.charSequenceMaxLength = charSequenceMaxLength;
         this.miniBatchSize = miniBatchSize;
         this.charDictionary = charsValid;
-        this.numOuputClasses = numOuputClasses;
 
         // valid characters mapping for use in vectorization
         this.mapCharToIndex = new HashMap<>();
@@ -73,28 +73,43 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
         csvParser = new CSVParser(csvFile, false);
         List<List<String>> parsedLines = csvParser.getParsedLines();
 
-        // determine character sequence max length
+        // process sequences and labels
         charSequenceColumn = 0;
         charSequences = new ArrayList<>();
         labels = new ArrayList<>();
+
+        labelClasses = new ArrayList<>();
+        numLabelClasses = LabelTimeInterval.values().length;
+
         for (List<String> parsedLine : parsedLines) {
             // sequences
             char[] chars = parsedLine.get(charSequenceColumn).toCharArray();
             char[] charsCleaned = cleanInvalidCharacters(chars);
             charSequences.add(charsCleaned);
             // labels
-            String labelValue = parsedLine.get(parsedLine.size() - 1).trim();
-            labels.add(labelValue.equals("") ? -1 : Long.valueOf(labelValue));
+            String labelStr = parsedLine.get(parsedLine.size() - 1).trim();
+            long labelLong = labelStr.equals("") ? -1 : Long.valueOf(labelStr);
+            labels.add(labelLong);
+            //label classes
+            labelClasses.add(fromHours(labelLong));
         }
         IntSummaryStatistics summary = charSequences.stream().mapToInt(chars -> chars.length).summaryStatistics();
-        charSequenceMaxLength = summary.getMax();
-        log.info("### Character Sequence Summary: \n\t" + summary.toString());
-
         IntSummaryStatistics summaryLabels = labels.stream().mapToInt(Long::intValue).summaryStatistics();
-        log.info("### Labels Summary: \n\t" + summaryLabels.toString());
+        Map<LabelTimeInterval, Long> labelClassesDistr = labelClasses.stream().collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        StringBuilder summaryLabelClasses = new StringBuilder();
+        labelClassesDistr.entrySet().stream()
+                .sorted(Comparator.comparing(Map.Entry::getKey))
+                .forEach(e -> summaryLabelClasses.append(e.getKey()).append(":").append(e.getValue()).append(","));
 
+        // initialize minibatch offsets
         initializeOffsets();
-        log.info("### Number of batches per epoch: " + miniBatchStartOffsets.size());
+
+        String summaryMsg = "Character sequence iterator summary:\n" +
+                "\t Sequences:     " + summary.toString() + "\n" +
+                "\t Labels:        " + summaryLabels.toString() + "\n" +
+                "\t Label classes: " + summaryLabelClasses.toString() + "\n" +
+                "\t Batches/epoch: " + miniBatchStartOffsets.size();
+        log.info(summaryMsg);
     }
 
     private void initializeOffsets() {
@@ -210,33 +225,36 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
 
         // data
         INDArray sequenceInput = Nd4j.zeros(new int[]{currMinibatchSize, charDictionary.length, charSequenceMaxLength}, 'f');
-        INDArray labels = Nd4j.zeros(new int[]{currMinibatchSize, 3}, 'f');
+        INDArray labels = Nd4j.zeros(new int[]{currMinibatchSize, numLabelClasses}, 'f');
 
         // masks
         INDArray sequenceInputMask = Nd4j.zeros(new int[]{currMinibatchSize, charSequenceMaxLength}, 'f');
-        INDArray labelsMask = Nd4j.zeros(new int[]{currMinibatchSize, 3}, 'f');
+        INDArray labelsMask = Nd4j.zeros(new int[]{currMinibatchSize, numLabelClasses}, 'f');
         labelsMask.put(
                 new INDArrayIndex[]{NDArrayIndex.all(), NDArrayIndex.all()},
-                Nd4j.ones(currMinibatchSize, 3));
+                Nd4j.ones(currMinibatchSize, numLabelClasses));
 
         for (int i = 0; i < currMinibatchSize; i++) {
             // sequence
             char[] charSequence = charSequences.get(indexStart + i);
             int c = 0;
-            for (int j = 0; j < charSequence.length; j++, c++) {
+            int len = Math.min(charSequence.length, charSequenceMaxLength);
+            for (int j = 0; j < len; j++, c++) {
                 int charIndex = mapCharToIndex.get(charSequence[j]);
                 sequenceInput.putScalar(new int[]{i, charIndex, c}, 1.0);
             }
             // labels
-            labels.putScalar(i, this.labels.get(indexStart + i), 1.0);
+            // Long label = this.labels.get(indexStart + i);
+            LabelTimeInterval labelInterval = this.labelClasses.get(indexStart + i);
+            labels.putScalar(i, labelInterval.ordinal(), 1.0);
 
             // mask
             sequenceInputMask.put(
                     new INDArrayIndex[]{
                             NDArrayIndex.point(i),
-                            NDArrayIndex.interval(0, charSequence.length)
+                            NDArrayIndex.interval(0, len)
                     },
-                    Nd4j.ones(charSequence.length));
+                    Nd4j.ones(len));
 
         }
         return new org.nd4j.linalg.dataset.DataSet(
@@ -251,7 +269,7 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
 
     @Override
     public int totalOutcomes() {
-        return numOuputClasses;
+        return numLabelClasses;
     }
 
     public int charToIndex(char c) {
@@ -285,11 +303,11 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
             }
             // mask
             inputMask.put(
-                    new INDArrayIndex[] {NDArrayIndex.point(i), NDArrayIndex.interval(0, charSequence.length)},
+                    new INDArrayIndex[]{NDArrayIndex.point(i), NDArrayIndex.interval(0, charSequence.length)},
                     Nd4j.ones(charSequence.length));
 
         }
-        return new INDArray[] {input, inputMask};
+        return new INDArray[]{input, inputMask};
     }
 
     public Integer[] outputArrayToLabels(INDArray outputArray) {
@@ -300,5 +318,29 @@ public class CharacterSequenceClassifierIterator implements DataSetIterator {
         }).toArray(Integer[]::new);
     }
 
-}
+    public static enum LabelTimeInterval {
+        HOURS2,
+        DAY,
+        WEEK,
+        MONTH,
+        YEAR,
+        MORE
+    }
 
+    public static LabelTimeInterval fromHours(long hours) {
+        if (hours >= 0 && hours < 2) {
+            return LabelTimeInterval.HOURS2;
+        } else if (hours >= 2 && hours < 24) {
+            return LabelTimeInterval.DAY;
+        } else if (hours >= 24 && hours < 24 * 7) {
+            return LabelTimeInterval.WEEK;
+        } else if (hours >= 24 * 7 && hours < 24 * 30) {
+            return LabelTimeInterval.MONTH;
+        } else if (hours >= 24 * 30 && hours < 24 * 365) {
+            return LabelTimeInterval.YEAR;
+        } else {
+            return LabelTimeInterval.MORE;
+        }
+    }
+
+}

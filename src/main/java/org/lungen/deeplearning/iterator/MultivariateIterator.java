@@ -1,5 +1,6 @@
 package org.lungen.deeplearning.iterator;
 
+import org.lungen.data.bugzilla.CSVParser;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.api.MultiDataSet;
 import org.nd4j.linalg.dataset.api.MultiDataSetPreProcessor;
@@ -13,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.*;
 import java.util.stream.IntStream;
-
-import static org.lungen.deeplearning.iterator.CharactersSets.*;
 
 /**
  * MultivariateIterator
@@ -82,23 +81,26 @@ public class MultivariateIterator implements MultiDataSetIterator {
         charSequences = new ArrayList<>();
         nonSequenceData = new ArrayList<>();
         labelData = new ArrayList<>();
+
+        String[] headerNames = csvParser.getHeaderNames();
+
         for (List<String> parsedLine : parsedLines) {
             // sequence
             char[] chars = parsedLine.get(charSequenceColumn).toCharArray();
             char[] charsCleaned = cleanInvalidCharacters(chars);
             charSequences.add(charsCleaned);
             // non-sequence
-            double[] numericValues = IntStream.range(0, csvParser.headerNames.length).filter(i -> {
-                String headerName = csvParser.headerNames[i];
-                return !headerName.equals(charSequenceColumnName) && i != csvParser.headerNames.length - 1;
+            double[] numericValues = IntStream.range(0, headerNames.length).filter(i -> {
+                String headerName = headerNames[i];
+                return !headerName.equals(charSequenceColumnName) && i != headerNames.length - 1;
             }).mapToDouble(i -> {
-                String headerName = csvParser.headerNames[i];
+                String headerName = headerNames[i];
                 String value = parsedLine.get(csvParser.getHeaderIndex(headerName));
                 return value.equals("") ? -1.0 : Double.valueOf(value);
             }).toArray();
             nonSequenceData.add(numericValues);
             // label
-            String labelValue = parsedLine.get(csvParser.headerNames.length - 1);
+            String labelValue = parsedLine.get(headerNames.length - 1);
             labelData.add(labelValue.equals("") ? -1 : Long.valueOf(labelValue));
         }
         IntSummaryStatistics summary = charSequences.stream().mapToInt(chars -> chars.length).summaryStatistics();
