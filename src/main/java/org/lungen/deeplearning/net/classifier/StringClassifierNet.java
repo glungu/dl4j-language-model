@@ -1,37 +1,31 @@
-package org.lungen.deeplearning.net.predictor;
+package org.lungen.deeplearning.net.classifier;
 
-import org.deeplearning4j.nn.conf.BackpropType;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
-import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
-import org.deeplearning4j.nn.conf.graph.rnn.LastTimeStepVertex;
 import org.deeplearning4j.nn.conf.inputs.InputType;
-import org.deeplearning4j.nn.conf.layers.BatchNormalization;
-import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.LSTM;
-import org.deeplearning4j.nn.conf.layers.OutputLayer;
-import org.deeplearning4j.nn.gradient.Gradient;
+import org.deeplearning4j.nn.conf.layers.*;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
-import org.lungen.deeplearning.iterator.CharacterSequenceValuePredictorIterator;
+import org.lungen.deeplearning.iterator.StringClassifierIterator;
 import org.lungen.deeplearning.listener.EarlyStopListener;
 import org.lungen.deeplearning.listener.ScorePrintListener;
 import org.lungen.deeplearning.listener.UIStatsListener;
 import org.lungen.deeplearning.model.ModelPersistence;
 import org.lungen.deeplearning.net.NeuralNet;
-import org.nd4j.evaluation.classification.Evaluation;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.nd4j.linalg.learning.config.Adam;
-import org.nd4j.linalg.learning.config.Nesterovs;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.lungen.deeplearning.iterator.CharactersSets.*;
@@ -41,15 +35,15 @@ import static org.lungen.deeplearning.iterator.CharactersSets.*;
  *
  * @author lungen.tech@gmail.com
  */
-public class CharacterSequenceValuePredictorNet implements NeuralNet {
+public class StringClassifierNet implements NeuralNet {
 
-    private static final Logger log = LoggerFactory.getLogger("net.predictor");
+    private static final Logger log = LoggerFactory.getLogger("net.classifier");
 
     private ComputationGraph net;
     private EarlyStopListener earlyStopListener;
     private ScorePrintListener scorePrintListener;
-    private CharacterSequenceValuePredictorIterator iteratorTrain;
-    protected CharacterSequenceValuePredictorIterator iteratorTest;
+    private StringClassifierIterator iteratorTrain;
+    private StringClassifierIterator iteratorTest;
     private UIStatsListener statsListener;
     private String modelName;
 
@@ -64,23 +58,26 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
         double l2Regularization = (Double) params.get(PARAM_L2_REGULARIZATION);
         int numIterEarlyStop    = (Integer) params.get(PARAM_NUMBER_ITER_NO_IMPROVE_STOP);
         int minEpochsEarlyStop  = (Integer) params.getOrDefault(PARAM_MIN_EPOCHS_STOP, 0);
-        int tbpttSize = (Integer) params.get(PARAM_TRUNCATED_BPTT_SIZE);
+//        int tbpttSize = (Integer) params.get(PARAM_TRUNCATED_BPTT_SIZE);
 
         final NeuralNetConfiguration.Builder builder = new NeuralNetConfiguration.Builder()
                 .seed(7)
                 .weightInit(WeightInit.XAVIER)
                 .l2(l2Regularization)
+//                .cudnnAlgoMode(ConvolutionLayer.AlgoMode.NO_WORKSPACE)
                 .updater(new Adam(learningRate));
 //                .updater(new RmsProp(learningRate))
-//                .updater(new Nesterovs(learningRate, 0.99))
+//                .updater(new Nesterovs(learningRate, 0.9))
+//                .updater(new AdaGrad(learningRate));
 //                .gradientNormalization(GradientNormalization.RenormalizeL2PerLayer);
 
         final int hiddenRecurrentSize = 250;
+        final int hiddenDenseSize = 250;
 
         final ComputationGraphConfiguration.GraphBuilder graphBuilder = builder.graphBuilder()
-                .backpropType(BackpropType.TruncatedBPTT)
-                .tBPTTForwardLength(tbpttSize)
-                .tBPTTBackwardLength(tbpttSize)
+//                .backpropType(BackpropType.TruncatedBPTT)
+//                .tBPTTForwardLength(tbpttSize)
+//                .tBPTTBackwardLength(tbpttSize)
                 .addInputs("recurrentInput")
                 .setInputTypes(InputType.recurrent(numFeaturesRecurrent))
                 .addLayer("lstm-1",
@@ -101,31 +98,49 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
                                 .nOut(hiddenRecurrentSize)
                                 .activation(Activation.TANH)
                                 .build(), "lstm-2")
-                .addVertex("thoughtVector",
-                        new LastTimeStepVertex("recurrentInput"), "lstm-3")
-                .addLayer("norm-1",
-                        new BatchNormalization.Builder()
-                                .nIn(hiddenRecurrentSize)
-                                .nOut(hiddenRecurrentSize)
-                                .build(), "thoughtVector")
+//                .addVertex("thoughtVector",
+//                        new LastTimeStepVertex("recurrentInput"),
+//                        "lstm-3")
+                .addLayer("thoughtVector",
+                        new GlobalPoolingLayer.Builder()
+                                .poolingType(PoolingType.AVG)
+                                .poolingDimensions(2) // recurrent dimension
+                                .collapseDimensions(true)
+                                .build(), "lstm-3")
+//                .addLayer("norm-1",
+//                        new BatchNormalization.Builder()
+//                                .nIn(hiddenRecurrentSize)
+//                                .nOut(hiddenRecurrentSize)
+//                                .build(), "thoughtVector")
                 .addLayer("dense-1",
                         new DenseLayer.Builder()
-                                .activation(Activation.TANH)
+                                .activation(Activation.LEAKYRELU)
                                 .nIn(hiddenRecurrentSize)
-                                .nOut(100)
-                                .build(), "norm-1")
-                .addLayer("norm-2",
-                        new BatchNormalization.Builder()
-                                .nIn(100)
-                                .nOut(100)
+                                .nOut(hiddenDenseSize)
+                                .build(), "thoughtVector")
+//                .addLayer("norm-2",
+//                        new BatchNormalization.Builder()
+//                                .nIn(hiddenDenseSize)
+//                                .nOut(hiddenDenseSize)
+//                                .build(), "dense-1")
+                .addLayer("dense-2",
+                        new DenseLayer.Builder()
+                                .activation(Activation.LEAKYRELU)
+                                .nIn(hiddenDenseSize)
+                                .nOut(hiddenDenseSize)
                                 .build(), "dense-1")
+//                .addLayer("norm-3",
+//                        new BatchNormalization.Builder()
+//                                .nIn(hiddenDenseSize)
+//                                .nOut(hiddenDenseSize)
+//                                .build(), "dense-2")
                 .addLayer("output",
                         new OutputLayer.Builder()
                                 .activation(Activation.SOFTMAX)
                                 .lossFunction(LossFunctions.LossFunction.MCXENT)
-                                .nIn(100)
+                                .nIn(hiddenDenseSize)
                                 .nOut(iteratorTest.totalOutcomes())
-                                .build(), "norm-2")
+                                .build(), "dense-2")
                 .setOutputs("output");
 
         net = new ComputationGraph(graphBuilder.build());
@@ -150,7 +165,6 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
             earlyStopListener.setEpoch(i);
 
             log.info("[{}] Epoch started", i);
-            String str = "Test set evaluation at epoch %d: Accuracy = %.2f, F1 = %.2f";
 
             while (iteratorTrain.hasNext()) {
                 DataSet ds = iteratorTrain.next();
@@ -159,13 +173,12 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
                 if (++miniBatchNumber % checkAfterNMinibatches == 0) {
 
                     // evaluate
-                    iteratorTest.reset();
+//                    iteratorTest.reset();
+//                    Evaluation evaluation = net.evaluate(iteratorTest);
+//                    log.info("[{}][{}] Test set evaluation. Accuracy: {}, F1: {}", i, miniBatchNumber, evaluation.accuracy(), evaluation.f1());
 
-                    Evaluation evaluation = net.evaluate(iteratorTest);
-                    log.info("[{}][{}] Test set evaluation. Accuracy: {}, F1: {}", i, miniBatchNumber, evaluation.accuracy(), evaluation.f1());
-//                    testOutputAndScore(ds);
                     iteratorTest.reset();
-                    DataSet testSet = iteratorTest.next(20);
+                    DataSet testSet = iteratorTest.next(100);
                     testOutputAndScore(testSet);
                 }
                 if (stopAfterNMinibatches > 0 && miniBatchNumber >= stopAfterNMinibatches) {
@@ -200,13 +213,20 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
                 new INDArray[] {testSet.getFeaturesMaskArray()})[0];
         INDArray labels = testSet.getLabels();
         StringBuilder evalMsg = new StringBuilder("--- Evaluation ---\n");
+        int sumCorrect = 0;
         for (int i = 0; i < output.size(0); i++) {
             INDArray resultArray = output.get(NDArrayIndex.point(i), NDArrayIndex.all());
             List<Double> resultList = Arrays.stream(resultArray.toDoubleVector()).boxed().collect(Collectors.toList());
             int result = resultArray.argMax(1).getInt(0);
             int expected = labels.get(NDArrayIndex.point(i), NDArrayIndex.all()).argMax(1).getInt(0);
             evalMsg.append(resultList).append(", ").append(result).append(" : ").append(expected).append('\n');
+            if (result == expected) {
+                sumCorrect++;
+            }
         }
+        double score = sumCorrect / (double) output.size(0);
+        evalMsg.append("-----------------\n");
+        evalMsg.append("Score: ").append(score).append('\n');
         evalMsg.append("-----------------\n");
 //        net.rnnClearPreviousState();
 //        net.clearLayersStates();
@@ -239,18 +259,18 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
     }
 
     @Override
-    public CharacterSequenceValuePredictorIterator iterator(Map<String, Object> params) {
+    public StringClassifierIterator iterator(Map<String, Object> params) {
         String fileTrain        = (String) params.get(PARAM_DATA_FILE);
         String fileTest         = (String) params.get(PARAM_DATA_FILE_TEST);
         int minibatchSize       = (Integer) params.get(PARAM_MINIBATCH_SIZE);
 
-        this.iteratorTrain = new CharacterSequenceValuePredictorIterator(new File(fileTrain),
-                createCharacterSet(RUSSIAN, LATIN, PUNCTUATION, SPECIAL),
+        this.iteratorTrain = new StringClassifierIterator(new File(fileTrain),
+                createCharacterSet(RUSSIAN, LATIN, NUMBERS, PUNCTUATION, SPECIAL),
                 2000, minibatchSize);
 
-        this.iteratorTest = new CharacterSequenceValuePredictorIterator(new File(fileTest),
-                createCharacterSet(RUSSIAN, LATIN, PUNCTUATION, SPECIAL),
-                2000, 100);
+        this.iteratorTest = new StringClassifierIterator(new File(fileTest),
+                createCharacterSet(RUSSIAN, LATIN, NUMBERS, PUNCTUATION, SPECIAL),
+                2000, 20);
 
         return iteratorTrain;
     }
@@ -258,22 +278,22 @@ public class CharacterSequenceValuePredictorNet implements NeuralNet {
     @Override
     public Map<String, Object> defaultParams() {
         Map<String, Object> params = new HashMap<>();
-        params.put(PARAM_MODEL_NAME, "wiktionary");
-        params.put(PARAM_DATA_FILE, "C:/DATA/Projects/DataSets/Bugzilla/bugzilla.train.csv");
-        params.put(PARAM_DATA_FILE_TEST, "C:/DATA/Projects/DataSets/Bugzilla/bugzilla.test.csv");
-        params.put(PARAM_MINIBATCH_SIZE, 64);
-        params.put(PARAM_LEARNING_RATE, 2e-4);
-        params.put(PARAM_L2_REGULARIZATION, 1e-4);
-        params.put(PARAM_TRUNCATED_BPTT_SIZE, 50);
+        params.put(PARAM_MODEL_NAME, "bugzilla-time");
+        params.put(PARAM_DATA_FILE, "C:/DATA/Projects/DataSets/Bugzilla/bugzilla.train.new.csv");
+        params.put(PARAM_DATA_FILE_TEST, "C:/DATA/Projects/DataSets/Bugzilla/bugzilla.test.new.csv");
+        params.put(PARAM_MINIBATCH_SIZE, 32);
+        params.put(PARAM_LEARNING_RATE, 1e-4);
+        params.put(PARAM_L2_REGULARIZATION, 1e-6);
+        params.put(PARAM_TRUNCATED_BPTT_SIZE, 100);
         params.put(PARAM_CHECK_EACH_NUMBER_MINIBATCHES, 10);
         params.put(PARAM_STOP_AFTER_NUMBER_MINIBATCHES, -1);
-        params.put(PARAM_NUMBER_EPOCHS, 3);
-        params.put(PARAM_NUMBER_ITER_NO_IMPROVE_STOP, 20000);
+        params.put(PARAM_NUMBER_EPOCHS, 5);
+        params.put(PARAM_NUMBER_ITER_NO_IMPROVE_STOP, 2500);
         return params;
     }
 
     public static void main(String[] args) {
-        CharacterSequenceValuePredictorNet net = new CharacterSequenceValuePredictorNet();
+        StringClassifierNet net = new StringClassifierNet();
         Map<String, Object> params = net.defaultParams();
         net.init(params);
         net.train(params);

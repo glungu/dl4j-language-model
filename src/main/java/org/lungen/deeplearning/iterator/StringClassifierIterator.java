@@ -1,5 +1,6 @@
 package org.lungen.deeplearning.iterator;
 
+import org.lungen.data.bugzilla.BugzillaResolveTime;
 import org.lungen.data.bugzilla.CSVParser;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
@@ -15,14 +16,13 @@ import java.io.File;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * CharacterSequenceValuePredictorIterator
  *
  * @author lungen.tech@gmail.com
  */
-public class CharacterSequenceValuePredictorIterator implements DataSetIterator {
+public class StringClassifierIterator implements DataSetIterator {
 
     private static final Logger log = LoggerFactory.getLogger("iterator.predictor");
 
@@ -37,21 +37,18 @@ public class CharacterSequenceValuePredictorIterator implements DataSetIterator 
 
     private CSVParser csvParser;
     private List<char[]> charSequences;
-    private List<Long> labels;
-    private List<LabelTimeInterval> labelClasses;
+    private List<Integer> labels;
+    private List<BugzillaResolveTime> labelClasses;
     private int numLabelClasses;
 
     // offsets for the start of each example
     private LinkedList<Integer> miniBatchStartOffsets = new LinkedList<>();
 
 
-    public CharacterSequenceValuePredictorIterator() {
-    }
-
-    public CharacterSequenceValuePredictorIterator(File csvFile,
-                                                   char[] charsValid,
-                                                   int charSequenceMaxLength,
-                                                   int miniBatchSize) {
+    public StringClassifierIterator(File csvFile,
+                                    char[] charsValid,
+                                    int charSequenceMaxLength,
+                                    int miniBatchSize) {
 
         if (!csvFile.isFile()) {
             throw new IllegalStateException("File does not exist: " + csvFile);
@@ -79,23 +76,26 @@ public class CharacterSequenceValuePredictorIterator implements DataSetIterator 
         labels = new ArrayList<>();
 
         labelClasses = new ArrayList<>();
-        numLabelClasses = LabelTimeInterval.values().length;
+        numLabelClasses = BugzillaResolveTime.values().length;
 
         for (List<String> parsedLine : parsedLines) {
+            if (parsedLine.size() != 2) {
+                throw new IllegalStateException("Wrong line: " + parsedLine);
+            }
             // sequences
             char[] chars = parsedLine.get(charSequenceColumn).toCharArray();
             char[] charsCleaned = cleanInvalidCharacters(chars);
             charSequences.add(charsCleaned);
             // labels
             String labelStr = parsedLine.get(parsedLine.size() - 1).trim();
-            long labelLong = labelStr.equals("") ? -1 : Long.valueOf(labelStr);
-            labels.add(labelLong);
+            int labelInt = Integer.valueOf(labelStr);
+            labels.add(labelInt);
             //label classes
-            labelClasses.add(fromHours(labelLong));
+            labelClasses.add(BugzillaResolveTime.values()[labelInt]);
         }
         IntSummaryStatistics summary = charSequences.stream().mapToInt(chars -> chars.length).summaryStatistics();
-        IntSummaryStatistics summaryLabels = labels.stream().mapToInt(Long::intValue).summaryStatistics();
-        Map<LabelTimeInterval, Long> labelClassesDistr = labelClasses.stream().collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        IntSummaryStatistics summaryLabels = labels.stream().mapToInt(Integer::intValue).summaryStatistics();
+        Map<BugzillaResolveTime, Long> labelClassesDistr = labelClasses.stream().collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
         StringBuilder summaryLabelClasses = new StringBuilder();
         labelClassesDistr.entrySet().stream()
                 .sorted(Comparator.comparing(Map.Entry::getKey))
@@ -127,10 +127,26 @@ public class CharacterSequenceValuePredictorIterator implements DataSetIterator 
         char[] result = new char[input.length];
         int index = 0;
         for (char c : input) {
+            // remove all leading quotes
+            if (index == 0 && c == '"') {
+                continue;
+            }
+            // remove multiple quotes
+            if (c == '"' && index >= 1 && result[index - 1] == '"') {
+                continue;
+            }
             if (!mapCharToIndex.containsKey(c)) {
                 continue;
             }
             result[index++] = c;
+            // max length
+            if (index >= charSequenceMaxLength) {
+                break;
+            }
+        }
+        // remove all trailing quotes (can be one at this point)
+        if (result[index-1] == '"') {
+            index--;
         }
         return Arrays.copyOfRange(result, 0, index);
     }
@@ -178,6 +194,10 @@ public class CharacterSequenceValuePredictorIterator implements DataSetIterator 
 
     public char[] getSequence(int index) {
         return index >= 0 && index < charSequences.size() ? charSequences.get(index) : null;
+    }
+
+    public int getTotalSequences() {
+        return charSequences.size();
     }
 
     public void get() {
@@ -240,13 +260,17 @@ public class CharacterSequenceValuePredictorIterator implements DataSetIterator 
             int c = 0;
             int len = Math.min(charSequence.length, charSequenceMaxLength);
             for (int j = 0; j < len; j++, c++) {
-                int charIndex = mapCharToIndex.get(charSequence[j]);
-                sequenceInput.putScalar(new int[]{i, charIndex, c}, 1.0);
+                try {
+                    int charIndex = mapCharToIndex.get(charSequence[j]);
+                    sequenceInput.putScalar(new int[]{i, charIndex, c}, 1.0);
+                } catch (Exception e) {
+                    System.out.println("Wrong index: " + j);
+                }
             }
             // labels
             // Long label = this.labels.get(indexStart + i);
-            LabelTimeInterval labelInterval = this.labelClasses.get(indexStart + i);
-            labels.putScalar(i, labelInterval.ordinal(), 1.0);
+            BugzillaResolveTime label = this.labelClasses.get(indexStart + i);
+            labels.putScalar(i, label.ordinal(), 1.0);
 
             // mask
             sequenceInputMask.put(
@@ -286,61 +310,6 @@ public class CharacterSequenceValuePredictorIterator implements DataSetIterator 
 
     public int getCharSequenceMaxLength() {
         return charSequenceMaxLength;
-    }
-
-    public INDArray[] wordsToInputArray(String[] words) {
-        int size = words.length;
-        INDArray input = Nd4j.zeros(new int[]{size, charDictionary.length, charSequenceMaxLength}, 'f');
-        INDArray inputMask = Nd4j.zeros(new int[]{size, charSequenceMaxLength}, 'f');
-
-        for (int i = 0; i < size; i++) {
-            // sequence
-            char[] charSequence = words[i].toCharArray();
-            int c = 0;
-            for (int j = 0; j < charSequence.length; j++, c++) {
-                int charIndex = mapCharToIndex.get(charSequence[j]);
-                input.putScalar(new int[]{i, charIndex, c}, 1.0);
-            }
-            // mask
-            inputMask.put(
-                    new INDArrayIndex[]{NDArrayIndex.point(i), NDArrayIndex.interval(0, charSequence.length)},
-                    Nd4j.ones(charSequence.length));
-
-        }
-        return new INDArray[]{input, inputMask};
-    }
-
-    public Integer[] outputArrayToLabels(INDArray outputArray) {
-        int numRecords = (int) outputArray.size(0);
-        return IntStream.range(0, numRecords).mapToObj(i -> {
-            INDArray oneHotLabel = outputArray.get(NDArrayIndex.point(i), NDArrayIndex.all());
-            return oneHotLabel.argMax(1).getInt(0);
-        }).toArray(Integer[]::new);
-    }
-
-    public static enum LabelTimeInterval {
-        HOURS2,
-        DAY,
-        WEEK,
-        MONTH,
-        YEAR,
-        MORE
-    }
-
-    public static LabelTimeInterval fromHours(long hours) {
-        if (hours >= 0 && hours < 2) {
-            return LabelTimeInterval.HOURS2;
-        } else if (hours >= 2 && hours < 24) {
-            return LabelTimeInterval.DAY;
-        } else if (hours >= 24 && hours < 24 * 7) {
-            return LabelTimeInterval.WEEK;
-        } else if (hours >= 24 * 7 && hours < 24 * 30) {
-            return LabelTimeInterval.MONTH;
-        } else if (hours >= 24 * 30 && hours < 24 * 365) {
-            return LabelTimeInterval.YEAR;
-        } else {
-            return LabelTimeInterval.MORE;
-        }
     }
 
 }
